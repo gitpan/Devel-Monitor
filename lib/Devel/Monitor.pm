@@ -30,7 +30,7 @@ our %EXPORT_TAGS = ( #Export as groups
 Exporter::export_ok_tags(    #Export by request (into @EXPORT_OK)
     'all');
 
-our $VERSION = '0.9.0.1';
+our $VERSION = '0.9.0.2';
 
 use Error qw(:try);
 use Scalar::Util qw(isweak);
@@ -47,22 +47,18 @@ use constant CRT_CIRC_REF          => 1;
 use constant CRT_INTERNAL_CIRC_REF => 2;
 use constant CRT_WEAK_CIRC_REF     => 3;
 
-##DOC
-
-=head2 monitor
-
-DESC Monitoring multiple variables
-     monitor('name for a' => \$a,
-             'name for b' => \$b,
-             'name for c' => \$c,
-             'name for d' => \@d,
-             'name for e' => \%e,
-             'name for F' => \&F);
-DESC Monitoring single constant variable (FOR INTERNAL USE ONLY)
-     monitor('name for F' => \&F, 1);
-     The last flag indicates that it is code reference
-             
-=cut
+# METH monitor
+#
+# DESC Monitoring multiple variables
+#      monitor('name for a' => \$a,
+#              'name for b' => \$b,
+#              'name for c' => \$c,
+#              'name for d' => \@d,
+#              'name for e' => \%e,
+#              'name for F' => \&F);
+# DESC Monitoring single constant variable (FOR INTERNAL USE ONLY)
+#      monitor('name for F' => \&F, 1);
+#      The last flag indicates that it is code reference          
 
 sub monitor {
     my $isCode;
@@ -354,13 +350,9 @@ sub _dereference {
     }
 }
  
-##DOC
- 
-=head2 printCircularRef
- 
-DESC Try to find circular references and print it out into STDERR
- 
-=cut
+# METH printCircularRef
+#  
+# DESC Try to find circular references and print it out into STDERR
 
 #Little redirect to be "Perl compliant"
 #TODO : use the underscore syntax
@@ -525,15 +517,11 @@ sub _printCircularRefResults {
     Devel::Monitor::Common::printMsg("-------------------------------------------------------------------------------\n");        
 }
     
-##DOC
-
-=head2 _checkCircularRef
-
-DESC Verify if there is a circular reference on the current variable
-RETV Circular Reference Type
-     One of : CRT_NONE, CRT_CIRC_REF, CRT_WEAK_CIRC_REF, CRT_INTERNAL_CIRC_REF
-
-=cut
+# METH _checkCircularRef
+# 
+# DESC Verify if there is a circular reference on the current variable
+# RETV Circular Reference Type
+#      One of : CRT_NONE, CRT_CIRC_REF, CRT_WEAK_CIRC_REF, CRT_INTERNAL_CIRC_REF
 
 sub _checkCircularRef {
     my $varRef = shift;
@@ -668,34 +656,6 @@ sub _getWeakenedInCircRef {
     return \@weakenedInCircRef;
 }
  
-#Kept as temp backup since CPAN renders it
-=head1 TABLE OF CONTENT
-
- - SYNOPSIS
- - METHOD EXAMPLES : monitor
-   - Example 01
-     - Example 01 with circular references
-     - Example 01 without circular references
- - METHOD EXAMPLES : printCircularRef
-   - Example 01
- - DESCRIPTION
- - VERY IMPORTANT THINGS YOU SHOULD BE AWARE
-   - Loop vars are passed by references
-   - You cannot use references from a tied object because it reuse memory space
-   - You cannot weaken a tied object
-     - Proof 01 : Devel::Peek
-     - Proof 02 : mod_perl
-   - Variable using constants are destroyed when the constant is destroyed
- - TRACKING MEMORY LEAKS
-   - How to remove Circular references in Perl
- - CHECKING MODULES SYNTAX
- - WHAT THIS MODULE CAN'T DO FOR YOU
- - MODULES THAT PRODUCE MEMORY LEAKS
- - SCRIPTS TO HELP YOU
- - AUTHOR
- 
-=cut
-
 1;
 
 __END__
