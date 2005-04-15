@@ -30,7 +30,7 @@ our %EXPORT_TAGS = ( #Export as groups
 Exporter::export_ok_tags(    #Export by request (into @EXPORT_OK)
     'all');
 
-our $VERSION = '0.9.0.2';
+our $VERSION = '0.9.0.3';
 
 use Error qw(:try);
 use Scalar::Util qw(isweak);
@@ -663,6 +663,20 @@ __END__
 =head1 NAME
 
 Devel::Monitor - Monitor your variables/objects for memory leaks
+    
+=head1 DESCRIPTION
+
+You have memory leaks, and you want to remove them... You can use this tool to help
+you find which variables/objects that are not destroyed when they should be, and
+thereafter, you can visualise exactly where is the circular reference for some
+specific variables/objects.
+
+=head1 WHAT IT CAN'T DO
+
+Even if your modules are memory leak free, it doesn't mean that external modules
+that you are using don't have it. So, before running your application on mod_perl,
+you should be sure that EVERY modules are ok. (In particular those perl extensions
+calling C++ code)
 
 =head1 SYNOPSIS
  
@@ -682,11 +696,6 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
             'name for F' => \&F); #NOTE : Dont add parentheses to the end of the constant (\&F())
  
     #-----------------------------------------------------------------------------
-    # Unmonitor, not yet tested, but useless anyway
-    #-----------------------------------------------------------------------------
-    # unmonitor($a, $b, \$c, \@d, \%e);
- 
-    #-----------------------------------------------------------------------------
     # Print circular references                                                   
     #-----------------------------------------------------------------------------
     # NOTE : You cannot use printCircularRef on a monitored/tied variable 
@@ -698,9 +707,9 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     printCircularRef(\%e);
     printCircularRef(\&F); #NOTE : Dont add parentheses to the end of the constant (\&F())
 
-=head1 METHOD EXAMPLES : monitor
+=head1 USAGE : monitor
  
-=head2 Example with circular references
+=head2 Example with a circular reference
 
     +----------------------+
     | Code                 |
@@ -727,7 +736,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     The line "DESTROY ARRAY a" should be between scope prints.
     @a were deleted on program exit.
      
-=head2 Example without circular references
+=head2 Example without a circular reference
 
     +----------------------+
     | Code                 |
@@ -752,12 +761,23 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     +----------------------+
     Everything is ok
  
-=head1 METHOD EXAMPLES : printCircularRef
+
+Now that you know there is a circular reference, you can track it down using the printCircularRef method
+
+=head1 USAGE : printCircularRef
 
 =head2 Example
 
     +----------------------+
     | Code                 |
+	|         a            |
+	|        / \           |
+	|      [0] [1]         |
+	|      /     \         |
+	|  'asdf'     b <--|   |
+	|              \   |   |
+	|              [3]-|   |
+	|                      |
     +----------------------+
     my (@a, @b);
     $a[0] = 'asdf';
@@ -799,467 +819,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     Internal circular reference : 0
     Weak circular reference     : 0
     -------------------------------------------------------------------------------
-    
-=head1 DESCRIPTION
  
-See http://www.infocopter.com/perl/monitored-variables.htm (Monitor.pm) for original source code
-I've made a lot of modifications, debug, tweaks, whatever, using the Tie package. It also handle
-more features.
- 
-=head1 VERY IMPORTANT THINGS YOU SHOULD BE AWARE
- 
-=head2 Loop vars are passed by references
-
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    {
-        my @list = (1,2,3);
-        print STDERR join(", ",@list)."\n";
-        for my $item (@list) {
-            monitor("item $item" => \$item);
-            $item+=1000;
-            print "$item\n";
-        }
-        print STDERR join(", ",@list)."\n";
-        print "Leaving scope\n";
-    }
-    print "Scope left\n";
-     
-    +------------------------+
-    | What you might want    |
-    |(Or something like that)|
-    +------------------------+
-    1, 2, 3
-    MONITOR SCALAR : item 1
-    1001
-    DESTROY SCALAR : item 1
-    MONITOR SCALAR : item 2
-    1002
-    DESTROY SCALAR : item 2
-    MONITOR SCALAR : item 3
-    1003
-    DESTROY SCALAR : item 3
-    1, 2, 3
-    Leaving scope
-    Scope left
- 
-    +----------------------+
-    | Real Output          |
-    +----------------------+
-    1, 2, 3
-    MONITOR SCALAR : item 1
-    1001
-    MONITOR SCALAR : item 2
-    1002
-    MONITOR SCALAR : item 3
-    1003
-    1001, 1002, 1003
-    Leaving scope
-    DESTROY SCALAR : item 3
-    DESTROY SCALAR : item 2
-    DESTROY SCALAR : item 1
-    Scope left
-     
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    Perl passes variables by reference within for/foreach, so the variables you are using
-    are the original ones. (You can print the scalar adresses to be sure)
-    The difference is that normaly, Perl passes variables by value.
-    So, if you monitor those variables, they won't be destroyed until the initial declaration is. 
-    
-=head2 You cannot use references from a tied object because it reuse memory space
-
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    my $self = {'a' => 1,
-                'b' => 2};
-    monitor('self' => \$self);
-    print STDERR \($self->{'a'})."\n";
-    print STDERR \($self->{'b'})."\n";
-    print STDERR \($self->{'a'}).\($self->{'b'})."\n";
-    foreach my $key (keys %$self) {
-        my $keyRef = \$key;
-        my $value = $self->{$key};
-        my $valueRef = \($self->{$key});
-        print STDERR "KEY:$key, KEY REF:$keyRef, VALUE:$value, VALUE REF:$valueRef\n";
-    }   
-    
-    +----------------------+
-    | Output               |
-    +----------------------+
-    MONITOR HASH : self
-    SCALAR(0x8141384)
-    SCALAR(0x8141384)
-    SCALAR(0x8141384)SCALAR(0x81413cc)
-    KEY:a, KEY REF:SCALAR(0x8141420), VALUE:1, VALUE REF:SCALAR(0x824becc)
-    KEY:b, KEY REF:SCALAR(0x81413cc), VALUE:2, VALUE REF:SCALAR(0x824becc)
-    DESTROY HASH : self
-    
-    +----------------------+
-    | Code 2               |
-    +----------------------+
-    my %self;
-    #monitor('self' => \$self);
-    tie %self, 'Devel::Monitor::TestHash';
-    $self{a} = 1;
-    $self{b} = 2;
-    print STDERR \($self{a})."\n";
-    print STDERR \($self{b})."\n";
-    print STDERR \($self{a}).\($self{b})."\n";
-    foreach my $key (keys %self) {
-        my $keyRef = \$key;
-        my $value = $self{$key};
-        my $valueRef = \($self{$key});
-        print STDERR "KEY:$key, KEY REF:$keyRef, VALUE:$value, VALUE REF:$valueRef\n";
-    }  
-
-    +----------------------+
-    | Output 2             |
-    +----------------------+
-    SCALAR(0x8141378)
-    SCALAR(0x8141378)
-    SCALAR(0x8141378)SCALAR(0x8248fe8)
-    KEY:a, KEY REF:SCALAR(0x81413cc), VALUE:1, VALUE REF:SCALAR(0x825567c)
-    KEY:b, KEY REF:SCALAR(0x825564c), VALUE:2, VALUE REF:SCALAR(0x825567c)
-    Devel::Monitor::TestHash::DESTROY : Devel::Monitor::TestHash=HASH(0x81412e8)
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    Hash keys refering 1 and 2 can't be the same reference. But we see the
-    opposite on these small examples. It seems like tied objects reuse memory space
-    instead of refering to the original value from the untied object.
-    
-=head2 You cannot weaken a tied object
-
-=head3 Proof 01 : Devel::Peek
-
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    #!/usr/bin/perl
-    
-    use Scalar::Util qw(weaken isweak);
-    my (@a, @b);
-    tie @a, 'Monitor::TestArray';
-    tie @b, 'Monitor::TestArray';
-    $a[0] = \@b;
-    $b[0] = \@a;
-    weaken($b[0]);
-    if (isweak($a[0])) {
-       print "\$a[0] is weak\n";
-    } else {
-       print "\$a[0] is not weak\n";
-    }  
-    if (isweak($b[0])) {
-       print "\$b[0] is weak\n";
-    } else {
-       print "\$b[0] is not weak\n";
-    }    
-    package Monitor::TestArray;
-    use Tie::Array;
-    use base 'Tie::StdArray';
-    
-    sub DESTROY { "Monitor::TestArray::DESTROY : $_[0]\n"; }
-    
-    1; 
-    
-    +----------------------+
-    | Wanted output        |
-    +----------------------+
-    $a[0] is not weak
-    $b[0] is weak
-    
-    +----------------------+
-    | Real output          |
-    +----------------------+
-    $a[0] is not weak
-    $b[0] is not weak
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    We still have this output if we remove one of the "tie" call. But, if we remove those
-    two "tie", it works and we get the wanted output. So there is a problem.
-    
-    +----------------------+
-    | Note                 |
-    +----------------------+
-    I'm pretty sure this is a perl bug (Tested with 5.8.6 and 5.8.3).
-    The code for Scalar::Util::weaken and Scalar::Util::isweak is written in XS
-    
-    void
-    weaken(sv)
-       SV *sv
-    PROTOTYPE: $
-    CODE:
-    #ifdef SvWEAKREF
-       sv_rvweaken(sv);
-    #else
-       croak("weak references are not implemented in this release of perl");
-    #endif
-           
-    void
-    isweak(sv)
-       SV *sv
-    PROTOTYPE: $
-    CODE:
-    #ifdef SvWEAKREF
-       ST(0) = boolSV(SvROK(sv) && SvWEAKREF(sv));
-       XSRETURN(1);
-    #else
-       croak("weak references are not implemented in this release of perl");
-    #endif 
-    
-    I don't see any problems in this code. Normally when you weaken a variable, it
-    set the SvWEAKREF flag. You can visualize this behavior with this code :
-    
-    +----------------------+
-    | Visualize weak var   |
-    | with Devel::Peek     |
-    +----------------------+
-    use Devel::Peek;
-    Dump($yourVariable);
-    
-    However, when using tied variables, nothing is modified. So i believe that
-    the code behind sv_rvweaken (XS) called by weaken (Perl) does not handle variables 
-    with SvTYPE at SVt_PVLV. I believe this is a perl bug (C++ code behind sv_rvweaken).
-    
-    Let's look at the differences we get when a reference is weakened.
-    If we have this code :
-    
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    #!/usr/bin/perl
-    use strict;
-    use warnings;
-    use Devel::Peek;
-    use Scalar::Util qw(weaken isweak);
-    
-    my (@a, @b);
-    $a[0] = \@b;
-    print STDERR "Dump before weaken\n";
-    Dump(\$a[0]);
-    weaken($a[0]);
-    print STDERR "Dump after weaken\n";
-    Dump(\$a[0]);
-    
-    +----------------------+
-    | Output               |
-    +----------------------+
-    Dump before weaken
-    SV = RV(0x818274c) at 0x81411c8
-      REFCNT = 1
-      FLAGS = (TEMP,ROK)
-      RV = 0x814127c
-      SV = RV(0x8182760) at 0x814127c
-        REFCNT = 2
-        FLAGS = (ROK)
-        RV = 0x814e894
-        SV = PVAV(0x81426f8) at 0x814e894
-          REFCNT = 2
-          FLAGS = (PADBUSY,PADMY)
-          IV = 0
-          NV = 0
-          ARRAY = 0x0
-          FILL = -1
-          MAX = -1
-          ARYLEN = 0x0
-          FLAGS = (REAL)
-    Dump after weaken
-    SV = RV(0x818274c) at 0x81412e8
-      REFCNT = 1
-      FLAGS = (TEMP,ROK)
-      RV = 0x814127c
-      SV = RV(0x8182760) at 0x814127c
-        REFCNT = 2
-        FLAGS = (ROK,WEAKREF,IsUV)
-        RV = 0x814e894
-        SV = PVAV(0x81426f8) at 0x814e894
-          REFCNT = 1
-          FLAGS = (PADBUSY,PADMY,RMG)
-          IV = 0
-          NV = 0
-          MAGIC = 0x8208e80
-            MG_VIRTUAL = &PL_vtbl_backref
-            MG_TYPE = PERL_MAGIC_backref(<)
-            MG_FLAGS = 0x02
-              REFCOUNTED
-            MG_OBJ = 0x81411c8
-            SV = PVAV(0x8142724) at 0x81411c8
-              REFCNT = 2
-              FLAGS = ()
-              IV = 0
-              NV = 0
-              ARRAY = 0x825ec28
-              FILL = 0
-              MAX = 3
-              ARYLEN = 0x0
-              FLAGS = (REAL)
-              Elt No. 0
-              SV = RV(0x8182760) at 0x814127c
-                REFCNT = 2
-                FLAGS = (ROK,WEAKREF,IsUV)
-                RV = 0x814e894
-          ARRAY = 0x0
-          FILL = -1
-          MAX = -1
-          ARYLEN = 0x0
-          FLAGS = (REAL)
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    The important part is the WEAKREF flag which say that the reference is weaken.
-    Refer to perlapi, perlguts, and any other perl core documentation further informations.
-
-=head3 Proof 02 : mod_perl
-
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    +------------+
-    | test.pl    |
-    +------------+
-    #!/usr/bin/perl
-    use strict;
-    use warnings;
-    use Scalar::Util qw(weaken);
-    use Devel::Monitor;
-    use Util::Junk;
-    
-    my (@a, $b);
-    #tie @a, 'Devel::Monitor::TestArray';
-    $a[0] = \$b;
-    $b = \@a;
-    $a[1] = Util::Junk::_20M();
-    weaken($a[0]);
-    
-    +------------+
-    | Util::Junk |
-    +------------+
-    package Util::Junk;
-    use strict;
-    use warnings;
-    
-    sub _20M() { 'A 20 megs string here filled with zeros' }
-    
-    1;
-    
-    +----------------------+
-    | wget-test.pl         |
-    +----------------------+
-    #!/usr/bin/perl
-    
-    use strict;
-    use warnings;
-    
-    my $baseUrl = 'http://localhost/perl/test.pl';
-    
-    my $i = 0;
-    while (1) {
-        print "Loop ".++$i."\n";
-        
-        system('wget "'.$baseUrl.'" -O /dev/null') == 0
-            or die "\nwget failed or has been interrupted : $?\n";
-    }
-    
-    +----------------------+
-    | Test 01              |
-    +----------------------+
-    Now that we got a program and a caller (and mod_perl on our apache server), we can start the program.
-    
-    perl wget-test.pl
-    
-    When @a is not tied (See the commented tie in test.pl), after loading the page like ten times, the
-    page will be in cache in every apache processes and other loading will be VERY fast. You'll also
-    notice that memory is stable.
-    
-    However, if you uncomment the tie call in test.pl, you'll see your memory being filled to death and
-    every page loaded will be as long as at the beginning 
-    
-=head3 Conclusion
-
-    It is actually impossible to weaken a tied variable
-    
-=head3 Variable using constants are destroyed when the constant is destroyed
-
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    #!/usr/bin/perl
-    use strict;
-    use warnings;
-    use Devel::Monitor;
-    
-    use constant CONST => [1,2,3]; 
-    #monitor('CONST', \&CONST);
-    print &CONST."\n";
-    {
-        my $item = CONST();
-        monitor('item', \$item);
-        print $item."\n";
-        print "Leaving scope\n";
-    }
-    print "Scope left\n";
-    
-    +------------------------+
-    | What you might want    |
-    |(Or something like that)|
-    +------------------------+
-    ARRAY(0x81c503c)
-    MONITOR ARRAY : item
-    ARRAY(0x1234567)
-    Leaving scope
-    DESTROY ARRAY : item
-    Scope left
-    
-    +----------------------+
-    | Real Output          |
-    +----------------------+
-    ARRAY(0x81c503c)
-    MONITOR ARRAY : item
-    ARRAY(0x81c503c)
-    Leaving scope
-    Scope left
-    DESTROY ARRAY : item
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    It looks like your variable is not destroyed ! But in fact, $item is the same
-    reference that CONST is. So, you are monitoring CONST directly ! If you
-    absolutely want to monitor this code, you must uncomment the 
-    "#monitor('CONST', \&CONST);" line in code.
-    
-    +----------------------+
-    | Output with monitor  |
-    | on \&CONST           |
-    +----------------------+
-    MONITOR CODE SCALAR : CONST [0]
-    MONITOR CODE SCALAR : CONST [1]
-    MONITOR CODE SCALAR : CONST [2]
-    MONITOR CODE ARRAY : CONST
-    ARRAY(0x81c4e30)
-    Array from item is already tied by CONST
-    ARRAY(0x81c4e30)
-    Leaving scope
-    Scope left
-    DESTROY CODE SCALAR : CONST [0]
-    DESTROY CODE SCALAR : CONST [1]
-    DESTROY CODE SCALAR : CONST [2]
-    DESTROY CODE ARRAY : CONST
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    You monitored a constant and you cannot monitor twice a variable, so $item won't
-    be monitored. This way, you can see that there is no memory leak.
-
 =head1 TRACKING MEMORY LEAKS
  
 =head2 How to remove Circular references in Perl
@@ -1495,19 +1055,572 @@ more features.
     # weaken the caller's reference.
     #
     #------------------------------------------------------------------------------+
+	
+=head1 THINGS YOU SHOULD BE AWARE OF
+ 
+=head2 Loop variables are passed by references
 
-=head1 CHECKING MODULES SYNTAX
+    Let's see in details what output you get when monitoring variables inside a loop. 
 
-    Redirect stderr to stdout and grep it
+    +----------------------+
+    | Code                 |
+    +----------------------+
+    {
+        my @list = (1,2,3);
+        print STDERR join(", ",@list)."\n";
+        for my $item (@list) {
+            monitor("item $item" => \$item);
+            $item+=1000;
+            print "$item\n";
+        }
+        print STDERR join(", ",@list)."\n";
+        print "Leaving scope\n";
+    }
+    print "Scope left\n";
+     
+    +------------------------+
+    | What you might want    |
+    |(Or something like that)|
+    +------------------------+
+    1, 2, 3
+    MONITOR SCALAR : item 1
+    1001
+    DESTROY SCALAR : item 1
+    MONITOR SCALAR : item 2
+    1002
+    DESTROY SCALAR : item 2
+    MONITOR SCALAR : item 3
+    1003
+    DESTROY SCALAR : item 3
+    1, 2, 3
+    Leaving scope
+    Scope left
+ 
+    +----------------------+
+    | Real Output          |
+    +----------------------+
+    1, 2, 3
+    MONITOR SCALAR : item 1
+    1001
+    MONITOR SCALAR : item 2
+    1002
+    MONITOR SCALAR : item 3
+    1003
+    1001, 1002, 1003
+    Leaving scope
+    DESTROY SCALAR : item 3
+    DESTROY SCALAR : item 2
+    DESTROY SCALAR : item 1
+    Scope left
+     
+    +----------------------+
+    | Meaning              |
+    +----------------------+
+    Perl passes variables by reference within for/foreach, so the variables you are using
+    are the original ones. (You can print the scalar adresses to be sure)
+    The difference is that normaly, Perl passes variables by value.
+    So, if you monitor those variables, they won't be destroyed until the initial declaration is. 
+    
+=head2 Variable using constants are destroyed when the constant is destroyed
+
+    Let's look at this small example :
+	
+    +----------------------+
+    | Code                 |
+    +----------------------+
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Devel::Monitor;
+    
+    use constant CONST => [1,2,3]; 
+    #monitor('CONST', \&CONST);
+    print &CONST."\n";
+    {
+        my $item = CONST();
+        monitor('item', \$item);
+        print $item."\n";
+        print "Leaving scope\n";
+    }
+    print "Scope left\n";
+    
+    +------------------------+
+    | What you might want    |
+    |(Or something like that)|
+    +------------------------+
+    ARRAY(0x81c503c)
+    MONITOR ARRAY : item
+    ARRAY(0x1234567)
+    Leaving scope
+    DESTROY ARRAY : item
+    Scope left
+    
+    +----------------------+
+    | Real Output          |
+    +----------------------+
+    ARRAY(0x81c503c)
+    MONITOR ARRAY : item
+    ARRAY(0x81c503c)
+    Leaving scope
+    Scope left
+    DESTROY ARRAY : item
+    
+    +----------------------+
+    | Meaning              |
+    +----------------------+
+    It looks like your variable is not destroyed ! But in fact, $item is the same
+    reference that CONST is. So, you are monitoring CONST directly ! If you
+    absolutely want to monitor this code, you must uncomment the 
+    "#monitor('CONST', \&CONST);" line in code.
+    
+    +----------------------+
+    | Output with monitor  |
+    | on \&CONST           |
+    +----------------------+
+    MONITOR CODE SCALAR : CONST [0]
+    MONITOR CODE SCALAR : CONST [1]
+    MONITOR CODE SCALAR : CONST [2]
+    MONITOR CODE ARRAY : CONST
+    ARRAY(0x81c4e30)
+    Array from item is already tied by CONST
+    ARRAY(0x81c4e30)
+    Leaving scope
+    Scope left
+    DESTROY CODE SCALAR : CONST [0]
+    DESTROY CODE SCALAR : CONST [1]
+    DESTROY CODE SCALAR : CONST [2]
+    DESTROY CODE ARRAY : CONST
+    
+    +----------------------+
+    | Meaning              |
+    +----------------------+
+    You monitored a constant and you cannot monitor twice a variable, so $item won't
+    be monitored. This way, you can see that there is no memory leak.
+	
+=head2 Perl problems
+
+=head3 You cannot use references from a tied object because it reuse memory space
+
+    Let's see in details what happen when you try to print circular references
+	with a tied object (An object with a monitor by example !!!)
+
+    +----------------------+
+    | Code                 |
+    +----------------------+
+    my $self = {'a' => 1,
+                'b' => 2};
+    monitor('self' => \$self);
+    print STDERR \($self->{'a'})."\n";
+    print STDERR \($self->{'b'})."\n";
+    print STDERR \($self->{'a'}).\($self->{'b'})."\n";
+    foreach my $key (keys %$self) {
+        my $keyRef = \$key;
+        my $value = $self->{$key};
+        my $valueRef = \($self->{$key});
+        print STDERR "KEY:$key, KEY REF:$keyRef, VALUE:$value, VALUE REF:$valueRef\n";
+    }   
+    
+    +----------------------+
+    | Output               |
+    +----------------------+
+    MONITOR HASH : self
+    SCALAR(0x8141384)
+    SCALAR(0x8141384)
+    SCALAR(0x8141384)SCALAR(0x81413cc)
+    KEY:a, KEY REF:SCALAR(0x8141420), VALUE:1, VALUE REF:SCALAR(0x824becc)
+    KEY:b, KEY REF:SCALAR(0x81413cc), VALUE:2, VALUE REF:SCALAR(0x824becc)
+    DESTROY HASH : self
+    
+    +----------------------+
+    | Code 2               |
+    +----------------------+
+    my %self;
+    #monitor('self' => \$self);
+    tie %self, 'Devel::Monitor::TestHash';
+    $self{a} = 1;
+    $self{b} = 2;
+    print STDERR \($self{a})."\n";
+    print STDERR \($self{b})."\n";
+    print STDERR \($self{a}).\($self{b})."\n";
+    foreach my $key (keys %self) {
+        my $keyRef = \$key;
+        my $value = $self{$key};
+        my $valueRef = \($self{$key});
+        print STDERR "KEY:$key, KEY REF:$keyRef, VALUE:$value, VALUE REF:$valueRef\n";
+    }  
+
+    +----------------------+
+    | Output 2             |
+    +----------------------+
+    SCALAR(0x8141378)
+    SCALAR(0x8141378)
+    SCALAR(0x8141378)SCALAR(0x8248fe8)
+    KEY:a, KEY REF:SCALAR(0x81413cc), VALUE:1, VALUE REF:SCALAR(0x825567c)
+    KEY:b, KEY REF:SCALAR(0x825564c), VALUE:2, VALUE REF:SCALAR(0x825567c)
+    Devel::Monitor::TestHash::DESTROY : Devel::Monitor::TestHash=HASH(0x81412e8)
+    
+    +----------------------+
+    | Meaning              |
+    +----------------------+
+    Hash keys refering 1 and 2 can't be the same reference. But we see the
+    opposite on these small examples. It seems like tied objects reuse memory space
+    instead of refering to the original value from the untied object.
+    
+=head3 You cannot weaken a tied object
+
+This is actually an unhandled reference by Perl (Verified with 5.9.2-). It means
+that if you monitor (or tie explicitly) an object, any weaken references into
+this one will simply be ignored.
+
+=head4 Proof 01 : Basic test
+
+    +----------------------+
+    | Code                 |
+    +----------------------+
+    #!/usr/bin/perl
+    
+    use Scalar::Util qw(weaken isweak);
+    my (@a, @b);
+    tie @a, 'Monitor::TestArray';
+    tie @b, 'Monitor::TestArray';
+    $a[0] = \@b;
+    $b[0] = \@a;
+    weaken($b[0]);
+    if (isweak($a[0])) {
+       print "\$a[0] is weak\n";
+    } else {
+       print "\$a[0] is not weak\n";
+    }  
+    if (isweak($b[0])) {
+       print "\$b[0] is weak\n";
+    } else {
+       print "\$b[0] is not weak\n";
+    }    
+    package Monitor::TestArray;
+    use Tie::Array;
+    use base 'Tie::StdArray';
+    
+    sub DESTROY { "Monitor::TestArray::DESTROY : $_[0]\n"; }
+    
+    1; 
+    
+    +----------------------+
+    | Wanted output        |
+    +----------------------+
+    $a[0] is not weak
+    $b[0] is weak
+    
+    +----------------------+
+    | Real output          |
+    +----------------------+
+    $a[0] is not weak
+    $b[0] is not weak
+    
+    +----------------------+
+    | Meaning              |
+    +----------------------+
+    We still have this output if we remove one of the "tie" call. But, if we remove those
+    two "tie", it works and we get the wanted output. So there is a problem.
+
+=head4 Proof 02 : mod_perl
+
+    +----------------------+
+    | Code                 |
+    +----------------------+
+    +------------+
+    | test.pl    |
+    +------------+
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Scalar::Util qw(weaken);
+    use Devel::Monitor;
+    use Util::Junk;
+    
+    my (@a, $b);
+    #tie @a, 'Devel::Monitor::TestArray';
+    $a[0] = \$b;
+    $b = \@a;
+    $a[1] = Util::Junk::_20M();
+    weaken($a[0]);
+    
+    +------------+
+    | Util::Junk |
+    +------------+
+    package Util::Junk;
+    use strict;
+    use warnings;
+    
+    sub _20M() { 'A 20 megs string here filled with zeros' }
+    
+    1;
+    
+    +----------------------+
+    | wget-test.pl         |
+    +----------------------+
+    #!/usr/bin/perl
+    
+    use strict;
+    use warnings;
+    
+    my $baseUrl = 'http://localhost/perl/test.pl';
+    
+    my $i = 0;
+    while (1) {
+        print "Loop ".++$i."\n";
+        
+        system('wget "'.$baseUrl.'" -O /dev/null') == 0
+            or die "\nwget failed or has been interrupted : $?\n";
+    }
+    
+    +----------------------+
+    | Test 01              |
+    +----------------------+
+    Now that we got a program and a caller (and mod_perl on our apache server), we can start the program.
+    
+    perl wget-test.pl
+    
+    When @a is not tied (See the commented tie in test.pl), after loading the page like ten times, the
+    page will be in cache in every apache processes and other loading will be VERY fast. You'll also
+    notice that memory is stable.
+    
+    However, if you uncomment the tie call in test.pl, you'll see your memory being filled to death and
+    every page loaded will be as long as at the beginning 
+    
+=head4 Proof 03 : Final assault
+    
+    Firstly, we must be sure that the methods Scalar::Util::weaken and Scalar::Util::isweak
+	doesn't contain bugs. The code for these method follows : 
+    
+    void
+    weaken(sv)
+       SV *sv
+    PROTOTYPE: $
+    CODE:
+    #ifdef SvWEAKREF
+       sv_rvweaken(sv);
+    #else
+       croak("weak references are not implemented in this release of perl");
+    #endif
+    
+    void
+    isweak(sv)
+       SV *sv
+    PROTOTYPE: $
+    CODE:
+    #ifdef SvWEAKREF
+       ST(0) = boolSV(SvROK(sv) && SvWEAKREF(sv));
+       XSRETURN(1);
+    #else
+       croak("weak references are not implemented in this release of perl");
+    #endif
+    
+	We easily see that there is absolutely no problems here.
+
+    Now let's see what happen if we dump a tied variable by using Devel::Peek.
+	It should activate the WEAKREF flag if the reference is weak.
+    
+	Let's see what result we should get :
+    
+    +----------------------+
+    | Code                 |
+    +----------------------+
+    #!/usr/bin/perl
+    use strict;
+    use warnings;
+    use Util::Monitor;
+     
+    use Scalar::Util qw(weaken);
+    use Devel::Peek;
+    {
+        my (@a);
+        $a[0] = \@a;
+        #tie @a, 'TestArray';
+        Dump($a[0],1);
+        weaken($a[0]);
+        Dump($a[0],1);
+        print "Leaving scope\n";
+    }
+    print "Scope left\n";
+     
+    package TestArray;
+    use Tie::Array;
+    use base 'Tie::StdArray';
+     
+    sub DESTROY { print "Monitor::TestArray::DESTROY : $_[0]\n"; }
+     
+    1;
+    
+    +-------------------------------+
+    | Output without the "tie" call |
+    +-------------------------------+
+    SV = RV(0x81829c0) at 0x814127c
+      REFCNT = 1
+      FLAGS = (ROK)
+      RV = 0x814e740
+      SV = PVAV(0x81426cc) at 0x814e740
+        REFCNT = 2
+        FLAGS = (PADBUSY,PADMY)
+        IV = 0
+        NV = 0
+        ARRAY = 0x8148888
+        FILL = 0
+        MAX = 3
+        ARYLEN = 0x0
+        FLAGS = (REAL)
+    SV = RV(0x81829c0) at 0x814127c
+      REFCNT = 1
+      FLAGS = (ROK,WEAKREF,IsUV)
+      RV = 0x814e740
+      SV = PVAV(0x81426cc) at 0x814e740
+        REFCNT = 1
+        FLAGS = (PADBUSY,PADMY,RMG)
+        IV = 0
+        NV = 0
+        MAGIC = 0x8266f08
+          MG_VIRTUAL = &PL_vtbl_backref
+          MG_TYPE = PERL_MAGIC_backref(<)
+          MG_FLAGS = 0x02
+            REFCOUNTED
+          MG_OBJ = 0x81411c8
+          SV = PVAV(0x8263704) at 0x81411c8
+            REFCNT = 2
+            FLAGS = ()
+            IV = 0
+            NV = 0
+            ARRAY = 0x82677e8
+            FILL = 0
+            MAX = 3
+            ARYLEN = 0x0
+            FLAGS = (REAL)
+        ARRAY = 0x8148888
+        FILL = 0
+        MAX = 3
+        ARYLEN = 0x0
+        FLAGS = (REAL)
+    Leaving scope
+    Scope left
+    
+    +----------------------+
+    | Explanations         |
+    +----------------------+
+	We actually see the WEAKREF flag that confirms us that the reference is weak.
+	However, let's see what happen when we uncomment the 11th line (the tie call on @a)
+    
+    +----------------------------+
+    | Output with the "tie" call |
+    +----------------------------+
+    SV = PVLV(0x817c568) at 0x81413f0
+      REFCNT = 1
+      FLAGS = (TEMP,GMG,SMG,RMG)
+      IV = 0
+      NV = 0
+      PV = 0
+      MAGIC = 0x81505b8
+        MG_VIRTUAL = &PL_vtbl_packelem
+        MG_TYPE = PERL_MAGIC_tiedelem(p)
+        MG_FLAGS = 0x02
+          REFCOUNTED
+        MG_OBJ = 0x814139c
+        SV = RV(0x81829ac) at 0x814139c
+          REFCNT = 2
+          FLAGS = (ROK)
+          RV = 0x8141354
+      TYPE = t
+      TARGOFF = 0
+      TARGLEN = 0
+      TARG = 0x81413f0
+    SV = PVLV(0x817c568) at 0x81413f0
+      REFCNT = 1
+      FLAGS = (TEMP,GMG,SMG,RMG)
+      IV = 0
+      NV = 0
+      PV = 0
+      MAGIC = 0x81505b8
+        MG_VIRTUAL = &PL_vtbl_packelem
+        MG_TYPE = PERL_MAGIC_tiedelem(p)
+        MG_FLAGS = 0x02
+          REFCOUNTED
+        MG_OBJ = 0x814139c
+        SV = RV(0x81829ac) at 0x814139c
+          REFCNT = 2
+          FLAGS = (ROK)
+          RV = 0x8141354
+      TYPE = t
+      TARGOFF = 0
+      TARGLEN = 0
+      TARG = 0x81413f0
+    Leaving scope
+    Scope left
+    Monitor::TestArray::DESTROY : TestArray=ARRAY(0x8141354)
+    
+    +----------------------+
+    | Explanations         |
+    +----------------------+
+	Absolutely nothing has changed before and after. IT IS A PROBLEM ! So, I debugged
+	the perl source code to verify what happen with a tied variable. The method goes
+	like this :
+	
+    /*
+    =for apidoc sv_rvweaken
+     
+    Weaken a reference: set the C<SvWEAKREF> flag on this RV; give the
+    referred-to SV C<PERL_MAGIC_backref> magic if it hasn't already; and
+    push a back-reference to this RV onto the array of backreferences
+    associated with that magic.
+     
+    =cut
+    */
+     
+    SV *
+    Perl_sv_rvweaken(pTHX_ SV *sv)
+    {
+        SV *tsv;
+        if (!SvOK(sv))  /* let undefs pass */
+            return sv;
+        if (!SvROK(sv))
+            Perl_croak(aTHX_ "Can't weaken a nonreference");
+        else if (SvWEAKREF(sv)) {
+            if (ckWARN(WARN_MISC))
+                Perl_warner(aTHX_ packWARN(WARN_MISC), "Reference is already weak");
+            return sv;
+        }
+        tsv = SvRV(sv);
+        sv_add_backref(tsv, sv);
+        SvWEAKREF_on(sv);
+        SvREFCNT_dec(tsv);
+        return sv;
+    }
+    
+	The problem is at the line "if (!SvOK(sv))". A tied variable enter this condition
+	and returns itself without any modifications... The reason is that our variables
+	has those flags FLAGS = (TEMP,GMG,SMG,RMG). The code should be something like
+	this :
+
+	if (!SvOK(sv))
+		if (SvMAGIC(sv)) {
+			//***************************************
+			//Do something here !!!
+			//***************************************
+		} else {
+			return sv;
+		}
+
+     This bug has been submitted and is unanswered for now. (See http://rt.perl.org/rt3/Ticket/Display.html?id=34524)
+
+=head4 Conclusion
+
+    It is actually impossible to weaken a tied variable
+
+=head1 TRICKS
+
+=head2 CHECKING MODULES SYNTAX
+
+    Since monitored are executed when you check syntax of a module, it will print out
+	to stderr some messages with constants and some global variables. So to remove
+	those prints, simple grep it by redirecting stderr to stdout and grep it
 
     perl -c MyModule.pm 2>&1 | grep -iv '^(DESTROY|MONITOR|Scalar constant)'
-
-=head1 WHAT THIS MODULE CAN'T DO FOR YOU
-
-Even if your modules are memory leak free, it doesn't mean that external modules
-that you are using don't have it. So, before running your application on mod_perl,
-you should be sure that EVERY modules are ok. (In particular those perl extensions
-calling C++ code)
 
 =head1 MODULES THAT PRODUCE MEMORY LEAKS
 
@@ -1518,7 +1631,7 @@ calling C++ code)
     +----------------------+
     my $panel = Bio::Graphics::Panel->new(%options);
     ...
-    $panel->finished();
+    $panel->finished(); #Don't forget to call this destructor
       
     +----------------------+
     | XML::DOM             |
@@ -1526,25 +1639,30 @@ calling C++ code)
     my $parser  = new XML::DOM::Parser;
     my $doc = $parser->parsefile ("file.xml");
     ...
-    $doc->dispose();
+    $doc->dispose(); #Don't forget to call this destructor
     
     NOTE : I suggest that you use XML::LibXML instead
      
-=head1 CAVEATS
+=head1 NOTE
 
-TODO 
+This module has been tested with scalars, hashes, arrays, blessed hashes, blessed arrays, tied hashes, tied arrays, tied scalars.
 
 =head1 BUGS
 
-TODO
+None known
 
 =head1 AUTHOR
  
 Philippe Cote E<lt>philippe.cote@usherbrooke.caE<gt>
 
+=head1 CREDITS
+ 
+I get the main idea from a module that is not on CPAN. 
+See http://www.infocopter.com/perl/monitored-variables.htm (Monitor.pm) for original source code
+
 =head1 COPYRIGHT AND LICENSE
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
- 
+
 =cut
