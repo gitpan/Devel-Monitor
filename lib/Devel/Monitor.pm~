@@ -668,7 +668,14 @@ sub _getWeakenedInCircRef {
     return \@weakenedInCircRef;
 }
  
-#Kept as temp backup since CPAN renders it
+1;
+
+__END__
+ 
+=head1 NAME
+
+Devel::Monitor - Monitor your variables/objects for memory leaks
+
 =head1 TABLE OF CONTENT
 
  - SYNOPSIS
@@ -693,16 +700,6 @@ sub _getWeakenedInCircRef {
  - MODULES THAT PRODUCE MEMORY LEAKS
  - SCRIPTS TO HELP YOU
  - AUTHOR
- 
-=cut
-
-1;
-
-__END__
- 
-=head1 NAME
-
-Devel::Monitor - Monitor your variables/objects for memory leaks
 
 =head1 SYNOPSIS
  
@@ -722,7 +719,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
             'name for F' => \&F); #NOTE : Dont add parentheses to the end of the constant (\&F())
  
     #-----------------------------------------------------------------------------
-    # Unmonitor, not yet tested, but useless anyway
+    # Unmonitor, not yet tested and not used                                      
     #-----------------------------------------------------------------------------
     # unmonitor($a, $b, \$c, \@d, \%e);
  
@@ -740,7 +737,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
 
 =head1 METHOD EXAMPLES : monitor
  
-=head2 Example with circular references
+=head2 Example 01 with circular references
 
     +----------------------+
     | Code                 |
@@ -758,7 +755,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     +----------------------+
     MONITOR ARRAY a
     Leaving scope
-    Scope left                       
+    Scope left
     DESTROY ARRAY a
      
     +----------------------+
@@ -767,7 +764,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     The line "DESTROY ARRAY a" should be between scope prints.
     @a were deleted on program exit.
      
-=head2 Example without circular references
+=head2 Example 01 without circular references
 
     +----------------------+
     | Code                 |
@@ -794,7 +791,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
  
 =head1 METHOD EXAMPLES : printCircularRef
 
-=head2 Example
+=head2 Example 01
 
     +----------------------+
     | Code                 |
@@ -1031,516 +1028,523 @@ more features.
     I'm pretty sure this is a perl bug (Tested with 5.8.6 and 5.8.3).
     The code for Scalar::Util::weaken and Scalar::Util::isweak is written in XS
     
-    void
-    weaken(sv)
-       SV *sv
-    PROTOTYPE: $
-    CODE:
-    #ifdef SvWEAKREF
-       sv_rvweaken(sv);
-    #else
-       croak("weak references are not implemented in this release of perl");
-    #endif
-           
-    void
-    isweak(sv)
-       SV *sv
-    PROTOTYPE: $
-    CODE:
-    #ifdef SvWEAKREF
-       ST(0) = boolSV(SvROK(sv) && SvWEAKREF(sv));
-       XSRETURN(1);
-    #else
-       croak("weak references are not implemented in this release of perl");
-    #endif 
-    
-    I don't see any problems in this code. Normally when you weaken a variable, it
-    set the SvWEAKREF flag. You can visualize this behavior with this code :
-    
-    +----------------------+
-    | Visualize weak var   |
-    | with Devel::Peek     |
-    +----------------------+
-    use Devel::Peek;
-    Dump($yourVariable);
-    
-    However, when using tied variables, nothing is modified. So i believe that
-    the code behind sv_rvweaken (XS) called by weaken (Perl) does not handle variables 
-    with SvTYPE at SVt_PVLV. I believe this is a perl bug (C++ code behind sv_rvweaken).
-    
-    Let's look at the differences we get when a reference is weakened.
-    If we have this code :
-    
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    #!/usr/bin/perl
-    use strict;
-    use warnings;
-    use Devel::Peek;
-    use Scalar::Util qw(weaken isweak);
-    
-    my (@a, @b);
-    $a[0] = \@b;
-    print STDERR "Dump before weaken\n";
-    Dump(\$a[0]);
-    weaken($a[0]);
-    print STDERR "Dump after weaken\n";
-    Dump(\$a[0]);
-    
-    +----------------------+
-    | Output               |
-    +----------------------+
-    Dump before weaken
-    SV = RV(0x818274c) at 0x81411c8
+void
+weaken(sv)
+   SV *sv
+PROTOTYPE: $
+CODE:
+#ifdef SvWEAKREF
+   sv_rvweaken(sv);
+#else
+   croak("weak references are not implemented in this release of perl");
+#endif
+       
+void
+isweak(sv)
+   SV *sv
+PROTOTYPE: $
+CODE:
+#ifdef SvWEAKREF
+   ST(0) = boolSV(SvROK(sv) && SvWEAKREF(sv));
+   XSRETURN(1);
+#else
+   croak("weak references are not implemented in this release of perl");
+#endif 
+
+I don't see any problems in this code. Normally when you weaken a variable, it
+set the SvWEAKREF flag. You can visualize this behavior with this code :
+
++----------------------+
+| Visualize weak var   |
+| with Devel::Peek     |
++----------------------+
+use Devel::Peek;
+Dump($yourVariable);
+
+However, when using tied variables, nothing is modified. So i believe that
+the code behind sv_rvweaken (XS) called by weaken (Perl) does not handle variables 
+with SvTYPE at SVt_PVLV. I believe this is a perl bug (C++ code behind sv_rvweaken).
+
+Let's look at the differences we get when a reference is weakened.
+If we have this code :
+
++----------------------+
+| Code                 |
++----------------------+
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Devel::Peek;
+use Scalar::Util qw(weaken isweak);
+
+my (@a, @b);
+$a[0] = \@b;
+print STDERR "Dump before weaken\n";
+Dump(\$a[0]);
+weaken($a[0]);
+print STDERR "Dump after weaken\n";
+Dump(\$a[0]);
+
++----------------------+
+| Output               |
++----------------------+
+Dump before weaken
+SV = RV(0x818274c) at 0x81411c8
+  REFCNT = 1
+  FLAGS = (TEMP,ROK)
+  RV = 0x814127c
+  SV = RV(0x8182760) at 0x814127c
+    REFCNT = 2
+    FLAGS = (ROK)
+    RV = 0x814e894
+    SV = PVAV(0x81426f8) at 0x814e894
+      REFCNT = 2
+      FLAGS = (PADBUSY,PADMY)
+      IV = 0
+      NV = 0
+      ARRAY = 0x0
+      FILL = -1
+      MAX = -1
+      ARYLEN = 0x0
+      FLAGS = (REAL)
+Dump after weaken
+SV = RV(0x818274c) at 0x81412e8
+  REFCNT = 1
+  FLAGS = (TEMP,ROK)
+  RV = 0x814127c
+  SV = RV(0x8182760) at 0x814127c
+    REFCNT = 2
+    FLAGS = (ROK,WEAKREF,IsUV)
+    RV = 0x814e894
+    SV = PVAV(0x81426f8) at 0x814e894
       REFCNT = 1
-      FLAGS = (TEMP,ROK)
-      RV = 0x814127c
-      SV = RV(0x8182760) at 0x814127c
-        REFCNT = 2
-        FLAGS = (ROK)
-        RV = 0x814e894
-        SV = PVAV(0x81426f8) at 0x814e894
+      FLAGS = (PADBUSY,PADMY,RMG)
+      IV = 0
+      NV = 0
+      MAGIC = 0x8208e80
+        MG_VIRTUAL = &PL_vtbl_backref
+        MG_TYPE = PERL_MAGIC_backref(<)
+        MG_FLAGS = 0x02
+          REFCOUNTED
+        MG_OBJ = 0x81411c8
+        SV = PVAV(0x8142724) at 0x81411c8
           REFCNT = 2
-          FLAGS = (PADBUSY,PADMY)
+          FLAGS = ()
           IV = 0
           NV = 0
-          ARRAY = 0x0
-          FILL = -1
-          MAX = -1
+          ARRAY = 0x825ec28
+          FILL = 0
+          MAX = 3
           ARYLEN = 0x0
           FLAGS = (REAL)
-    Dump after weaken
-    SV = RV(0x818274c) at 0x81412e8
-      REFCNT = 1
-      FLAGS = (TEMP,ROK)
-      RV = 0x814127c
-      SV = RV(0x8182760) at 0x814127c
-        REFCNT = 2
-        FLAGS = (ROK,WEAKREF,IsUV)
-        RV = 0x814e894
-        SV = PVAV(0x81426f8) at 0x814e894
-          REFCNT = 1
-          FLAGS = (PADBUSY,PADMY,RMG)
-          IV = 0
-          NV = 0
-          MAGIC = 0x8208e80
-            MG_VIRTUAL = &PL_vtbl_backref
-            MG_TYPE = PERL_MAGIC_backref(<)
-            MG_FLAGS = 0x02
-              REFCOUNTED
-            MG_OBJ = 0x81411c8
-            SV = PVAV(0x8142724) at 0x81411c8
-              REFCNT = 2
-              FLAGS = ()
-              IV = 0
-              NV = 0
-              ARRAY = 0x825ec28
-              FILL = 0
-              MAX = 3
-              ARYLEN = 0x0
-              FLAGS = (REAL)
-              Elt No. 0
-              SV = RV(0x8182760) at 0x814127c
-                REFCNT = 2
-                FLAGS = (ROK,WEAKREF,IsUV)
-                RV = 0x814e894
-          ARRAY = 0x0
-          FILL = -1
-          MAX = -1
-          ARYLEN = 0x0
-          FLAGS = (REAL)
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    The important part is the WEAKREF flag which say that the reference is weaken.
-    Refer to perlapi, perlguts, and any other perl core documentation further informations.
+          Elt No. 0
+          SV = RV(0x8182760) at 0x814127c
+            REFCNT = 2
+            FLAGS = (ROK,WEAKREF,IsUV)
+            RV = 0x814e894
+      ARRAY = 0x0
+      FILL = -1
+      MAX = -1
+      ARYLEN = 0x0
+      FLAGS = (REAL)
 
-=head3 Proof 02 : mod_perl
++----------------------+
+| Meaning              |
++----------------------+
+The important part is the WEAKREF flag which say that the reference is weaken.
+Refer to perlapi, perlguts, and any other perl core documentation further informations.
 
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    +------------+
-    | test.pl    |
-    +------------+
-    #!/usr/bin/perl
-    use strict;
-    use warnings;
-    use Scalar::Util qw(weaken);
-    use Devel::Monitor;
-    use Util::Junk;
-    
-    my (@a, $b);
-    #tie @a, 'Devel::Monitor::TestArray';
-    $a[0] = \$b;
-    $b = \@a;
-    $a[1] = Util::Junk::_20M();
-    weaken($a[0]);
-    
-    +------------+
-    | Util::Junk |
-    +------------+
-    package Util::Junk;
-    use strict;
-    use warnings;
-    
-    sub _20M() { 'A 20 megs string here filled with zeros' }
-    
-    1;
-    
-    +----------------------+
-    | wget-test.pl         |
-    +----------------------+
-    #!/usr/bin/perl
-    
-    use strict;
-    use warnings;
-    
-    my $baseUrl = 'http://localhost/perl/test.pl';
-    
-    my $i = 0;
-    while (1) {
-        print "Loop ".++$i."\n";
-        
-        system('wget "'.$baseUrl.'" -O /dev/null') == 0
-            or die "\nwget failed or has been interrupted : $?\n";
-    }
-    
-    +----------------------+
-    | Test 01              |
-    +----------------------+
-    Now that we got a program and a caller (and mod_perl on our apache server), we can start the program.
-    
-    perl wget-test.pl
-    
-    When @a is not tied (See the commented tie in test.pl), after loading the page like ten times, the
-    page will be in cache in every apache processes and other loading will be VERY fast. You'll also
-    notice that memory is stable.
-    
-    However, if you uncomment the tie call in test.pl, you'll see your memory being filled to death and
-    every page loaded will be as long as at the beginning 
-    
-=head3 Conclusion
++-------------------------------------------------------------------+
+| Proof 02 : mod_perl                                               |
++-------------------------------------------------------------------+
++----------------------+
+| Code                 |
++----------------------+
++------------+
+| test.pl    |
++------------+
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Scalar::Util qw(weaken);
+use Devel::Monitor;
+use Util::Junk;
 
-    It is actually impossible to weaken a tied variable
-    
-=head3 Variable using constants are destroyed when the constant is destroyed
+my (@a, $b);
+#tie @a, 'Devel::Monitor::TestArray';
+$a[0] = \$b;
+$b = \@a;
+$a[1] = Util::Junk::_20M();
+weaken($a[0]);
 
-    +----------------------+
-    | Code                 |
-    +----------------------+
-    #!/usr/bin/perl
-    use strict;
-    use warnings;
-    use Devel::Monitor;
++------------+
+| Util::Junk |
++------------+
+package Util::Junk;
+use strict;
+use warnings;
+
+sub _20M() { 'A 20 megs string here filled with zeros' }
+
+1;
+
++----------------------+
+| wget-test.pl         |
++----------------------+
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my $baseUrl = 'http://localhost/perl/test.pl';
+
+my $i = 0;
+while (1) {
+    print "Loop ".++$i."\n";
     
-    use constant CONST => [1,2,3]; 
-    #monitor('CONST', \&CONST);
-    print &CONST."\n";
-    {
-        my $item = CONST();
-        monitor('item', \$item);
-        print $item."\n";
-        print "Leaving scope\n";
-    }
-    print "Scope left\n";
-    
-    +------------------------+
-    | What you might want    |
-    |(Or something like that)|
-    +------------------------+
-    ARRAY(0x81c503c)
-    MONITOR ARRAY : item
-    ARRAY(0x1234567)
-    Leaving scope
-    DESTROY ARRAY : item
-    Scope left
-    
-    +----------------------+
-    | Real Output          |
-    +----------------------+
-    ARRAY(0x81c503c)
-    MONITOR ARRAY : item
-    ARRAY(0x81c503c)
-    Leaving scope
-    Scope left
-    DESTROY ARRAY : item
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    It looks like your variable is not destroyed ! But in fact, $item is the same
-    reference that CONST is. So, you are monitoring CONST directly ! If you
-    absolutely want to monitor this code, you must uncomment the 
-    "#monitor('CONST', \&CONST);" line in code.
-    
-    +----------------------+
-    | Output with monitor  |
-    | on \&CONST           |
-    +----------------------+
-    MONITOR CODE SCALAR : CONST [0]
-    MONITOR CODE SCALAR : CONST [1]
-    MONITOR CODE SCALAR : CONST [2]
-    MONITOR CODE ARRAY : CONST
-    ARRAY(0x81c4e30)
-    Array from item is already tied by CONST
-    ARRAY(0x81c4e30)
-    Leaving scope
-    Scope left
-    DESTROY CODE SCALAR : CONST [0]
-    DESTROY CODE SCALAR : CONST [1]
-    DESTROY CODE SCALAR : CONST [2]
-    DESTROY CODE ARRAY : CONST
-    
-    +----------------------+
-    | Meaning              |
-    +----------------------+
-    You monitored a constant and you cannot monitor twice a variable, so $item won't
-    be monitored. This way, you can see that there is no memory leak.
+    system('wget "'.$baseUrl.'" -O /dev/null') == 0
+        or die "\nwget failed or has been interrupted : $?\n";
+}
+
++----------------------+
+| Test 01              |
++----------------------+
+Now that we got a program and a caller (and mod_perl on our apache server), we can start the program.
+
+perl wget-test.pl
+
+When @a is not tied (See the commented tie in test.pl), after loading the page like ten times, the
+page will be in cache in every apache processes and other loading will be VERY fast. You'll also
+notice that memory is stable.
+
+However, if you uncomment the tie call in test.pl, you'll see your memory being filled to death and
+every page loaded will be as long as at the beginning 
+
++----------------------+
+| Conclusion           |
++----------------------+
+It is actually impossible to weaken a tied variable
+
++-----------------------------------------------------------------------------+
+| Variable using constants are destroyed when the constant is destroyed       |
++-----------------------------------------------------------------------------+
++----------------------+
+| Code                 |
++----------------------+
+#!/usr/bin/perl
+use strict;
+use warnings;
+use Devel::Monitor;
+
+use constant CONST => [1,2,3]; 
+#monitor('CONST', \&CONST);
+print &CONST."\n";
+{
+    my $item = CONST();
+    monitor('item', \$item);
+    print $item."\n";
+    print "Leaving scope\n";
+}
+print "Scope left\n";
+
++------------------------+
+| What you might want    |
+|(Or something like that)|
++------------------------+
+ARRAY(0x81c503c)
+MONITOR ARRAY : item
+ARRAY(0x1234567)
+Leaving scope
+DESTROY ARRAY : item
+Scope left
+
++----------------------+
+| Real Output          |
++----------------------+
+ARRAY(0x81c503c)
+MONITOR ARRAY : item
+ARRAY(0x81c503c)
+Leaving scope
+Scope left
+DESTROY ARRAY : item
+
++----------------------+
+| Meaning              |
++----------------------+
+It looks like your variable is not destroyed ! But in fact, $item is the same
+reference that CONST is. So, you are monitoring CONST directly ! If you
+absolutely want to monitor this code, you must uncomment the 
+"#monitor('CONST', \&CONST);" line in code.
+
++----------------------+
+| Output with monitor  |
+| on \&CONST           |
++----------------------+
+MONITOR CODE SCALAR : CONST [0]
+MONITOR CODE SCALAR : CONST [1]
+MONITOR CODE SCALAR : CONST [2]
+MONITOR CODE ARRAY : CONST
+ARRAY(0x81c4e30)
+Array from item is already tied by CONST
+ARRAY(0x81c4e30)
+Leaving scope
+Scope left
+DESTROY CODE SCALAR : CONST [0]
+DESTROY CODE SCALAR : CONST [1]
+DESTROY CODE SCALAR : CONST [2]
+DESTROY CODE ARRAY : CONST
+
++----------------------+
+| Meaning              |
++----------------------+
+You monitored a constant and you cannot monitor twice a variable, so $item won't
+be monitored. This way, you can see that there is no memory leak.
 
 =head1 TRACKING MEMORY LEAKS
  
-=head2 How to remove Circular references in Perl
+#------------------------------------------------------------------------------+
+#
+# How to remove Circular references in Perl
+#
+#------------------------------------------------------------------------------+
  
-    #------------------------------------------------------------------------------+
-    #
-    # Let's say we have this basic code :
-    #
-    #------------------------------------------------------------------------------+
-     
-    #!/usr/bin/perl
-     
-    #--------------------------------------------------------------------
-    # Little program
-    #--------------------------------------------------------------------
-     
-    use strict;
-    use warnings;
-    use Devel::Monitor;
-     
+#------------------------------------------------------------------------------+
+#
+# Let's say we have this basic code :
+#
+#------------------------------------------------------------------------------+
+ 
+#!/usr/bin/perl
+ 
+#--------------------------------------------------------------------
+# Little program
+#--------------------------------------------------------------------
+ 
+use strict;
+use warnings;
+use Devel::Monitor;
+ 
+{
+    my $a = ClassA->new();
+    my $b = $a->getClassB();
+    monitor('$b' => \$b);
+    $b->getClassA()->printSomething();
+    print "Leaving scope\n";
+}
+print "Scope left\n";
+ 
+#--------------------------------------------------------------------
+# ClassA (Just a class with the "printSomething" method)
+#--------------------------------------------------------------------
+ 
+package ClassA;
+use strict;
+use warnings;
+use Scalar::Util qw(weaken isweak);
+ 
+sub new {
+    my ($class) = @_;
+    my $self = {};
+    bless($self => $class);
+    return $self;
+}
+ 
+sub getClassB {
+    my $self = shift;
+    $self->{_classB} = ClassB->new($self);
+    return $self->{_classB};
+}
+ 
+sub printSomething {
+    print "Something\n";
+}
+ 
+#--------------------------------------------------------------------
+# ClassB (A class that got a "parent" which is a ClassA instance)
+#--------------------------------------------------------------------
+ 
+package ClassB;
+use strict;
+use warnings;
+use Scalar::Util qw(weaken isweak);
+ 
+sub new {
+    my ($class, $classA) = @_;
+    my $self = {};
+    bless($self => $class);
+    $self->setClassA($classA);
+    return $self;
+}
+ 
+sub setClassA {
+    my ($self, $classA) = @_;
+    $self->{_classA} = $classA;
+}
+ 
+sub getClassA {
+    return shift->{_classA};
+}
+ 
+1;
+ 
+#------------------------------------------------------------------------------+
+#
+# The output will be
+#
+#------------------------------------------------------------------------------+
+ 
+MONITOR HASH : $b
+Something
+Leaving scope
+Scope left
+DESTROY HASH : $b
+ 
+#------------------------------------------------------------------------------+
+#
+# We see that the object reference by $b isn't destroyed when leaving the scope
+# because $a->{_classB} still use it. So, we got a circular reference here. We must
+# weaken one side of the circular reference to help Perl disallocate memory.
+#
+#------------------------------------------------------------------------------+
+#------------------------------------------------------------------------------+
+# Wrong way to break circular references
+#------------------------------------------------------------------------------+
+sub getClassB {
+    my $self = shift;
+    $self->{_classB} = ClassB->new($self);  #$self->{_classB} is the only
+                                            #reference to the objects
+    weaken($self->{_classB});               #we weaken the only reference,
+                                            #so, $self->{_classB} is DESTROYED HERE,
+                                            #which is very bad
+    print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
+    return $self->{_classB};
+}
+#------------------------------------------------------------------------------+
+# Good way
+#------------------------------------------------------------------------------+
+sub getClassB {
+    my $self = shift;
+    my $b = ClassB->new($self);
+    $self->{_classB} = $b;                  #we create a second reference to the object
+    weaken($self->{_classB});               #we weaken this reference, which is not deleted
+                                            #because thre is another reference
+    print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
+    return $self->{_classB};
+}
+#------------------------------------------------------------------------------+
+# Be careful ! With this code, it won't work
+#------------------------------------------------------------------------------+
+sub getClassB {
+    my $self = shift;
     {
-        my $a = ClassA->new();
-        my $b = $a->getClassB();
-        monitor('$b' => \$b);
-        $b->getClassA()->printSomething();
-        print "Leaving scope\n";
-    }
-    print "Scope left\n";
-     
-    #--------------------------------------------------------------------
-    # ClassA (Just a class with the "printSomething" method)
-    #--------------------------------------------------------------------
-     
-    package ClassA;
-    use strict;
-    use warnings;
-    use Scalar::Util qw(weaken isweak);
-     
-    sub new {
-        my ($class) = @_;
-        my $self = {};
-        bless($self => $class);
-        return $self;
-    }
-     
-    sub getClassB {
-        my $self = shift;
-        $self->{_classB} = ClassB->new($self);
-        return $self->{_classB};
-    }
-     
-    sub printSomething {
-        print "Something\n";
-    }
-     
-    #--------------------------------------------------------------------
-    # ClassB (A class that got a "parent" which is a ClassA instance)
-    #--------------------------------------------------------------------
-     
-    package ClassB;
-    use strict;
-    use warnings;
-    use Scalar::Util qw(weaken isweak);
-     
-    sub new {
-        my ($class, $classA) = @_;
-        my $self = {};
-        bless($self => $class);
-        $self->setClassA($classA);
-        return $self;
-    }
-     
-    sub setClassA {
-        my ($self, $classA) = @_;
-        $self->{_classA} = $classA;
-    }
-     
-    sub getClassA {
-        return shift->{_classA};
-    }
-     
-    1;
-     
-    #------------------------------------------------------------------------------+
-    #
-    # The output will be
-    #
-    #------------------------------------------------------------------------------+
-     
-    MONITOR HASH : $b
-    Something
-    Leaving scope
-    Scope left
-    DESTROY HASH : $b
-     
-    #------------------------------------------------------------------------------+
-    #
-    # We see that the object reference by $b isn't destroyed when leaving the scope
-    # because $a->{_classB} still use it. So, we got a circular reference here. We must
-    # weaken one side of the circular reference to help Perl disallocate memory.
-    #
-    #------------------------------------------------------------------------------+
-    #------------------------------------------------------------------------------+
-    # Wrong way to break circular references
-    #------------------------------------------------------------------------------+
-    sub getClassB {
-        my $self = shift;
-        $self->{_classB} = ClassB->new($self);  #$self->{_classB} is the only
-                                                #reference to the objects
-        weaken($self->{_classB});               #we weaken the only reference,
-                                                #so, $self->{_classB} is DESTROYED HERE,
-                                                #which is very bad
-        print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
-        return $self->{_classB};
-    }
-    #------------------------------------------------------------------------------+
-    # Good way
-    #------------------------------------------------------------------------------+
-    sub getClassB {
-        my $self = shift;
         my $b = ClassB->new($self);
         $self->{_classB} = $b;                  #we create a second reference to the object
         weaken($self->{_classB});               #we weaken this reference, which is not deleted
                                                 #because thre is another reference
         print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
-        return $self->{_classB};
-    }
-    #------------------------------------------------------------------------------+
-    # Be careful ! With this code, it won't work
-    #------------------------------------------------------------------------------+
-    sub getClassB {
-        my $self = shift;
-        {
-            my $b = ClassB->new($self);
-            $self->{_classB} = $b;                  #we create a second reference to the object
-            weaken($self->{_classB});               #we weaken this reference, which is not deleted
-                                                    #because thre is another reference
-            print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
-        } #$b is destroyed here, and the other reference $self->{_classB} is a weak reference,
-          #so the ClassB instance is destroyed, $self->{_classB} now equal undef
-        return $self->{_classB};
-    }
-    #------------------------------------------------------------------------------+
-    # Good way
-    #------------------------------------------------------------------------------+
-    sub getClassB {
-        my $self = shift;
-        my $b;
-        {
-            $b = ClassB->new($self);
-            $self->{_classB} = $b;                  #we create a second reference to the object
-            weaken($self->{_classB});               #we weaken this reference, which is not deleted
-                                                    #because thre is another reference
-            print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
-        } #$b is still not destroyed, so we didn't lose our not weak reference
-        return $self->{_classB}; #We return the object, someone on the other side will now keep
-                                 #the reference, so we don't care if $b lose the reference.
-                                 #Our job is done !
-    }
-    #------------------------------------------------------------------------------+
-    #
-    # Conclusion : You must be sure that you keep a non weak reference to the object
-    #
-    #------------------------------------------------------------------------------+
-     
-    #------------------------------------------------------------------------------+
-    #
-    # The output (Using the good way) will be
-    #
-    #------------------------------------------------------------------------------+
-     
-    $self->{_classB} is now weaken
-    MONITOR HASH : $b
-    Something
-    Leaving scope
-    DESTROY HASH : $b
-    Scope left
-     
-    #------------------------------------------------------------------------------+
-    #
-    # There is no circular references now...
-    #
-    #------------------------------------------------------------------------------+
-     
-    #------------------------------------------------------------------------------+
-    #
-    # IMPORTANT : Always weaken the caller's reference because someone may use the
-    # child objects (ClassB) this way. Let's see what can happen if you don't.
-    #
-    # If we get the following code
-    #
-    #------------------------------------------------------------------------------+
+    } #$b is destroyed here, and the other reference $self->{_classB} is a weak reference,
+      #so the ClassB instance is destroyed, $self->{_classB} now equal undef
+    return $self->{_classB};
+}
+#------------------------------------------------------------------------------+
+# Good way
+#------------------------------------------------------------------------------+
+sub getClassB {
+    my $self = shift;
     my $b;
     {
-        my $a = ClassA->new();
-        monitor('$a' => \$a);
-        $b = ClassB->new($a);
-        $b->getClassA()->printSomething();
-        print "Leaving scope\n";
-    }
-    print "Scope left\n";
+        $b = ClassB->new($self);
+        $self->{_classB} = $b;                  #we create a second reference to the object
+        weaken($self->{_classB});               #we weaken this reference, which is not deleted
+                                                #because thre is another reference
+        print "\$self->{_classB} is now weaken\n" if isweak($self->{_classB});
+    } #$b is still not destroyed, so we didn't lose our not weak reference
+    return $self->{_classB}; #We return the object, someone on the other side will now keep
+                             #the reference, so we don't care if $b lose the reference.
+                             #Our job is done !
+}
+#------------------------------------------------------------------------------+
+#
+# Conclusion : You must be sure that you keep a non weak reference to the object
+#
+#------------------------------------------------------------------------------+
+ 
+#------------------------------------------------------------------------------+
+#
+# The output (Using the good way) will be
+#
+#------------------------------------------------------------------------------+
+ 
+$self->{_classB} is now weaken
+MONITOR HASH : $b
+Something
+Leaving scope
+DESTROY HASH : $b
+Scope left
+ 
+#------------------------------------------------------------------------------+
+#
+# There is no circular references now...
+#
+#------------------------------------------------------------------------------+
+ 
+#------------------------------------------------------------------------------+
+#
+# IMPORTANT : Always weaken the caller's reference because someone may use the
+# child objects (ClassB) this way. Let's see what can happen if you don't.
+#
+# If we get the following code
+#
+#------------------------------------------------------------------------------+
+my $b;
+{
+    my $a = ClassA->new();
+    monitor('$a' => \$a);
+    $b = ClassB->new($a);
     $b->getClassA()->printSomething();
-     
-    #------------------------------------------------------------------------------+
-    #
-    # And the sub setClassA
-    #
-    #------------------------------------------------------------------------------+
-    sub setClassA {
-        my ($self, $classA) = @_;
-        $self->{_classA} = $classA;
-        weaken($self->{_classA});
-        print "\$self->{_classA} is now weaken\n" if isweak($self->{_classA});
-    }
-     
-    #------------------------------------------------------------------------------+
-    #
-    # You'll get this error
-    #
-    #------------------------------------------------------------------------------+
-    MONITOR HASH : $a
-    $self->{_classA} is now weaken
-    Something
-    Leaving scope
-    DESTROY HASH : $a
-    Scope left
-    Can't call method "printSomething" on an undefined value at test3.pl line 29.
-     
-    #------------------------------------------------------------------------------+
-    #
-    # $a is destroyed when leaving the scope, and the other reference to this variable
-    # is weaken, so this one is destroyed too. This clearly demonstrate that you must
-    # weaken the caller's reference.
-    #
-    #------------------------------------------------------------------------------+
+    print "Leaving scope\n";
+}
+print "Scope left\n";
+$b->getClassA()->printSomething();
+ 
+#------------------------------------------------------------------------------+
+#
+# And the sub setClassA
+#
+#------------------------------------------------------------------------------+
+sub setClassA {
+    my ($self, $classA) = @_;
+    $self->{_classA} = $classA;
+    weaken($self->{_classA});
+    print "\$self->{_classA} is now weaken\n" if isweak($self->{_classA});
+}
+ 
+#------------------------------------------------------------------------------+
+#
+# You'll get this error
+#
+#------------------------------------------------------------------------------+
+MONITOR HASH : $a
+$self->{_classA} is now weaken
+Something
+Leaving scope
+DESTROY HASH : $a
+Scope left
+Can't call method "printSomething" on an undefined value at test3.pl line 29.
+ 
+#------------------------------------------------------------------------------+
+#
+# $a is destroyed when leaving the scope, and the other reference to this variable
+# is weaken, so this one is destroyed too. This clearly demonstrate that you must
+# weaken the caller's reference.
+#
+#------------------------------------------------------------------------------+
 
 =head1 CHECKING MODULES SYNTAX
 
-    Redirect stderr to stdout and grep it
+Redirect stderr to stdout and grep it
 
-    perl -c MyModule.pm 2>&1 | grep -iv '^(DESTROY|MONITOR|Scalar constant)'
+perl -c MyModule.pm 2>&1 | grep -iv '^(DESTROY|MONITOR|Scalar constant)'
 
 =head1 WHAT THIS MODULE CAN'T DO FOR YOU
 
@@ -1551,25 +1555,25 @@ calling C++ code)
 
 =head1 MODULES THAT PRODUCE MEMORY LEAKS
 
-    You must destroy them when you don't need anymore those object instances
-    
-    +----------------------+
-    | Bio::Graphics::Panel |
-    +----------------------+
-    my $panel = Bio::Graphics::Panel->new(%options);
-    ...
-    $panel->finished();
-      
-    +----------------------+
-    | XML::DOM             |
-    +----------------------+
-    my $parser  = new XML::DOM::Parser;
-    my $doc = $parser->parsefile ("file.xml");
-    ...
-    $doc->dispose();
-    
-    NOTE : I suggest that you use XML::LibXML instead
-     
+You must destroy them when you don't need anymore those object instances
+
++----------------------+
+| Bio::Graphics::Panel |
++----------------------+
+my $panel = Bio::Graphics::Panel->new(%options);
+...
+$panel->finished();
+  
++----------------------+
+| XML::DOM             |
++----------------------+
+my $parser  = new XML::DOM::Parser;
+my $doc = $parser->parsefile ("file.xml");
+...
+$doc->dispose();
+
+NOTE : I suggest that you use XML::LibXML instead
+ 
 =head1 CAVEATS
 
 TODO 
