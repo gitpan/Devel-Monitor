@@ -30,7 +30,7 @@ our %EXPORT_TAGS = ( #Export as groups
 Exporter::export_ok_tags(    #Export by request (into @EXPORT_OK)
     'all');
 
-our $VERSION = '0.9.0.4';
+our $VERSION = '0.9.0.5';
 
 use Error qw(:try);
 use Scalar::Util qw(isweak);
@@ -770,14 +770,14 @@ Now that you know there is a circular reference, you can track it down using the
 
     +----------------------+
     | Code                 |
-	|         a            |
-	|        / \           |
-	|      [0] [1]         |
-	|      /     \         |
-	|  'asdf'     b <--|   |
-	|              \   |   |
-	|              [3]-|   |
-	|                      |
+    |         a            |
+    |        / \           |
+    |      [0] [1]         |
+    |      /     \         |
+    |  'asdf'     b <--|   |
+    |              \   |   |
+    |              [3]-|   |
+    |                      |
     +----------------------+
     my (@a, @b);
     $a[0] = 'asdf';
@@ -1616,9 +1616,9 @@ this one will simply be ignored.
 
 =head2 CHECKING MODULES SYNTAX
 
-    Since monitored are executed when you check syntax of a module, it will print out
-	to stderr some messages with constants and some global variables. So to remove
-	those prints, simple grep it by redirecting stderr to stdout and grep it
+    Since monitored are executed when you check syntax of a module, it will print out 
+    to stderr some messages with constants and some global variables. So to remove 
+    those prints, simple grep it by redirecting stderr to stdout and grep it
 
     perl -c MyModule.pm 2>&1 | grep -iv '^(DESTROY|MONITOR|Scalar constant)'
 
