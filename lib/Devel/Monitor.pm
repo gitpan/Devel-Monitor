@@ -30,7 +30,7 @@ our %EXPORT_TAGS = ( #Export as groups
 Exporter::export_ok_tags(    #Export by request (into @EXPORT_OK)
     'all');
 
-our $VERSION = '0.9.0.3';
+our $VERSION = '0.9.0.4';
 
 use Error qw(:try);
 use Scalar::Util qw(isweak);
@@ -680,7 +680,7 @@ calling C++ code)
 
 =head1 SYNOPSIS
  
-    use Devel::Monitor;
+    use Devel::Monitor qw(:all);
  
     #-----------------------------------------------------------------------------
     # Monitor scalars, arrays, hashes, references, constants                      
@@ -698,14 +698,14 @@ calling C++ code)
     #-----------------------------------------------------------------------------
     # Print circular references                                                   
     #-----------------------------------------------------------------------------
-    # NOTE : You cannot use printCircularRef on a monitored/tied variable 
+    # NOTE : You cannot use print_circular_ref on a monitored/tied variable 
     #        (See "We cannot use tied objects references because it reuse memory space" doc)
-    printCircularRef(\$a);
-    printCircularRef(\$b);
-    printCircularRef(\$c);
-    printCircularRef(\@d);
-    printCircularRef(\%e);
-    printCircularRef(\&F); #NOTE : Dont add parentheses to the end of the constant (\&F())
+    print_circular_ref(\$a);
+    print_circular_ref(\$b);
+    print_circular_ref(\$c);
+    print_circular_ref(\@d);
+    print_circular_ref(\%e);
+    print_circular_ref(\&F); #NOTE : Dont add parentheses to the end of the constant (\&F())
 
 =head1 USAGE : monitor
  
@@ -762,9 +762,9 @@ calling C++ code)
     Everything is ok
  
 
-Now that you know there is a circular reference, you can track it down using the printCircularRef method
+Now that you know there is a circular reference, you can track it down using the print_circular_ref method
 
-=head1 USAGE : printCircularRef
+=head1 USAGE : print_circular_ref
 
 =head2 Example
 
@@ -783,8 +783,8 @@ Now that you know there is a circular reference, you can track it down using the
     $a[0] = 'asdf';
     $a[1] = \@b;
     $b[3] = \@b;
-    printCircularRef(\@a);
-    printCircularRef(\@b);
+    print_circular_ref(\@a);
+    print_circular_ref(\@b);
  
     +----------------------+
     | Output               |
@@ -838,7 +838,7 @@ Now that you know there is a circular reference, you can track it down using the
      
     use strict;
     use warnings;
-    use Devel::Monitor;
+    use Devel::Monitor qw(:all);
      
     {
         my $a = ClassA->new();
@@ -1131,7 +1131,7 @@ Now that you know there is a circular reference, you can track it down using the
     #!/usr/bin/perl
     use strict;
     use warnings;
-    use Devel::Monitor;
+    use Devel::Monitor qw(:all);
     
     use constant CONST => [1,2,3]; 
     #monitor('CONST', \&CONST);
@@ -1334,7 +1334,7 @@ this one will simply be ignored.
     use strict;
     use warnings;
     use Scalar::Util qw(weaken);
-    use Devel::Monitor;
+    use Devel::Monitor qw(:all);
     use Util::Junk;
     
     my (@a, $b);
@@ -1428,7 +1428,7 @@ this one will simply be ignored.
     #!/usr/bin/perl
     use strict;
     use warnings;
-    use Util::Monitor;
+    use Devel::Monitor qw(:all);
      
     use Scalar::Util qw(weaken);
     use Devel::Peek;
