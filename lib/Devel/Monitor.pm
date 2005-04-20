@@ -30,7 +30,7 @@ our %EXPORT_TAGS = ( #Export as groups
 Exporter::export_ok_tags(    #Export by request (into @EXPORT_OK)
     'all');
 
-our $VERSION = '0.9.0.5';
+our $VERSION = '0.9.0.6';
 
 use Error qw(:try);
 use Scalar::Util qw(isweak);
@@ -666,7 +666,7 @@ Devel::Monitor - Monitor your variables/objects for memory leaks
     
 =head1 DESCRIPTION
 
-You have memory leaks, and you want to remove them... You can use this tool to help
+You have memory leaks, and you want to remove it... You can use this tool to help
 you find which variables/objects that are not destroyed when they should be, and
 thereafter, you can visualise exactly where is the circular reference for some
 specific variables/objects.
@@ -1202,7 +1202,7 @@ Now that you know there is a circular reference, you can track it down using the
 =head3 You cannot use references from a tied object because it reuse memory space
 
     Let's see in details what happen when you try to print circular references
-	with a tied object (An object with a monitor by example !!!)
+    with a tied object (An object with a monitor by example !!!)
 
     +----------------------+
     | Code                 |
@@ -1614,7 +1614,7 @@ this one will simply be ignored.
 
 =head1 TRICKS
 
-=head2 CHECKING MODULES SYNTAX
+=head2 Checking modules syntax
 
     Since monitored are executed when you check syntax of a module, it will print out 
     to stderr some messages with constants and some global variables. So to remove 
@@ -1653,11 +1653,11 @@ None known
 
 =head1 AUTHOR
  
-Philippe Cote E<lt>philippe.cote@usherbrooke.caE<gt>
+Philippe Cote E<lt>philippe.cote@usherbrooke.caE<gt>, Génome Québec E<lt>http://www.genomequebec.comE<gt>
 
 =head1 CREDITS
  
-I get the main idea from a module that is not on CPAN. 
+I got the main idea from a module that is not on CPAN. 
 See http://www.infocopter.com/perl/monitored-variables.htm (Monitor.pm) for original source code
 
 =head1 COPYRIGHT AND LICENSE

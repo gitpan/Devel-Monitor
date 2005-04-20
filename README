@@ -1,4 +1,4 @@
-Devel-Monitor version 0.9
+Devel-Monitor
 ==========================
 
 INSTALLATION
@@ -21,7 +21,9 @@ This module requires these other modules and libraries:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2005 by Philippe Cote
+Copyright (C) 2005
+Philippe Côté
+Génome Québec
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.8.6 or,
