@@ -13,7 +13,7 @@ our @ISA = qw(Exporter);
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 
-# This allows declaration	use Devel::Monitor ':all';
+# This allows declaration use Devel::Monitor ':all';
 # If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
 # will save memory.
 
@@ -22,7 +22,7 @@ our @EXPORT = qw();  #Export by default
 our %EXPORT_TAGS = ( #Export as groups
     'all' => [ 
         qw(monitor
-	       print_circular_ref
+           print_circular_ref
         )
     ]
 );
@@ -30,7 +30,7 @@ our %EXPORT_TAGS = ( #Export as groups
 Exporter::export_ok_tags(    #Export by request (into @EXPORT_OK)
     'all');
 
-our $VERSION = '0.9.0.6';
+our $VERSION = '0.9.0.7';
 
 use Error qw(:try);
 use Scalar::Util qw(isweak);
@@ -1055,7 +1055,7 @@ Now that you know there is a circular reference, you can track it down using the
     # weaken the caller's reference.
     #
     #------------------------------------------------------------------------------+
-	
+    
 =head1 THINGS YOU SHOULD BE AWARE OF
  
 =head2 Loop variables are passed by references
@@ -1124,7 +1124,7 @@ Now that you know there is a circular reference, you can track it down using the
 =head2 Variable using constants are destroyed when the constant is destroyed
 
     Let's look at this small example :
-	
+    
     +----------------------+
     | Code                 |
     +----------------------+
@@ -1196,7 +1196,7 @@ Now that you know there is a circular reference, you can track it down using the
     +----------------------+
     You monitored a constant and you cannot monitor twice a variable, so $item won't
     be monitored. This way, you can see that there is no memory leak.
-	
+    
 =head2 Perl problems
 
 =head3 You cannot use references from a tied object because it reuse memory space
@@ -1390,7 +1390,7 @@ this one will simply be ignored.
 =head4 Proof 03 : Final assault
     
     Firstly, we must be sure that the methods Scalar::Util::weaken and Scalar::Util::isweak
-	doesn't contain bugs. The code for these method follows : 
+    doesn't contain bugs. The code for these method follows : 
     
     void
     weaken(sv)
@@ -1415,12 +1415,12 @@ this one will simply be ignored.
        croak("weak references are not implemented in this release of perl");
     #endif
     
-	We easily see that there is absolutely no problems here.
+    We easily see that there is absolutely no problems here.
 
     Now let's see what happen if we dump a tied variable by using Devel::Peek.
-	It should activate the WEAKREF flag if the reference is weak.
+    It should activate the WEAKREF flag if the reference is weak.
     
-	Let's see what result we should get :
+    Let's see what result we should get :
     
     +----------------------+
     | Code                 |
@@ -1504,8 +1504,8 @@ this one will simply be ignored.
     +----------------------+
     | Explanations         |
     +----------------------+
-	We actually see the WEAKREF flag that confirms us that the reference is weak.
-	However, let's see what happen when we uncomment the 11th line (the tie call on @a)
+    We actually see the WEAKREF flag that confirms us that the reference is weak.
+    However, let's see what happen when we uncomment the 11th line (the tie call on @a)
     
     +----------------------------+
     | Output with the "tie" call |
@@ -1557,10 +1557,10 @@ this one will simply be ignored.
     +----------------------+
     | Explanations         |
     +----------------------+
-	Absolutely nothing has changed before and after. IT IS A PROBLEM ! So, I debugged
-	the perl source code to verify what happen with a tied variable. The method goes
-	like this :
-	
+    Absolutely nothing has changed before and after. IT IS A PROBLEM ! So, I debugged
+    the perl source code to verify what happen with a tied variable. The method goes
+    like this :
+    
     /*
     =for apidoc sv_rvweaken
      
@@ -1592,21 +1592,21 @@ this one will simply be ignored.
         return sv;
     }
     
-	The problem is at the line "if (!SvOK(sv))". A tied variable enter this condition
-	and returns itself without any modifications... The reason is that our variables
-	has those flags FLAGS = (TEMP,GMG,SMG,RMG). The code should be something like
-	this :
+    The problem is at the line "if (!SvOK(sv))". A tied variable enter this condition
+    and returns itself without any modifications... The reason is that our variables
+    has those flags FLAGS = (TEMP,GMG,SMG,RMG). The code should be something like
+    this :
 
-	if (!SvOK(sv))
-		if (SvMAGIC(sv)) {
-			//***************************************
-			//Do something here !!!
-			//***************************************
-		} else {
-			return sv;
-		}
+    if (!SvOK(sv))
+        if (SvMAGIC(sv)) {
+            //***************************************
+            //Do something here !!!
+            //***************************************
+        } else {
+            return sv;
+        }
 
-     This bug has been submitted and is unanswered for now. (See http://rt.perl.org/rt3/Ticket/Display.html?id=34524)
+    This bug has been submitted and is unanswered for now. (See http://rt.perl.org/rt3/Ticket/Display.html?id=34524)
 
 =head4 Conclusion
 
@@ -1653,12 +1653,13 @@ None known
 
 =head1 AUTHOR
  
-Philippe Cote E<lt>philippe.cote@usherbrooke.caE<gt>, Génome Québec E<lt>http://www.genomequebec.comE<gt>
+Philippe Cote E<lt> philippe.cote@usherbrooke.ca E<gt>
+Génome Québec E<lt> http://www.genomequebec.com E<gt>
 
 =head1 CREDITS
  
 I got the main idea from a module that is not on CPAN. 
-See http://www.infocopter.com/perl/monitored-variables.htm (Monitor.pm) for original source code
+See http://www.infocopter.com/perl/monitored-variables.htm (Monitor.pm)
 
 =head1 COPYRIGHT AND LICENSE
 
